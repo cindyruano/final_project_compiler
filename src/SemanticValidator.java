@@ -28,10 +28,24 @@ public class SemanticValidator {
                 result.diagnostics.add(new Diagnostic("SEMANTIC_UNKNOWN_COLUMN", "Columna no existe: " + col, new SourceSpan(1, 1)));
             }
         }
-        // TODO SERIE 2:
-        // Validar ast.where:
-        // - SEMANTIC_UNKNOWN_WHERE_COLUMN
-        // - SEMANTIC_TYPE_MISMATCH
-        // - TRACE|WHERE_TYPE_CHECK|<line>:<column>|<column>|<operator>|<literalType>
+        if (ast.where != null) {
+            for (int i = 0; i < ast.where.conditions.size(); i++) {
+                WhereCondition cond = ast.where.conditions.get(i);
+                LiteralType columnType = table.get(cond.column.toLowerCase());
+                if (columnType == null) {
+                    result.diagnostics.add(new Diagnostic("SEMANTIC_UNKNOWN_WHERE_COLUMN",
+                        "Columna no existe en WHERE: " + cond.column, cond.columnSpan));
+                } else {
+                    String trace = "TRACE|WHERE_TYPE_CHECK|" + cond.columnSpan.format() + "|" +
+                        cond.column + "|" + cond.operator + "|" + cond.literalType.name();
+                    result.traces.add(trace);
+                    if (columnType != cond.literalType) {
+                        result.diagnostics.add(new Diagnostic("SEMANTIC_TYPE_MISMATCH",
+                            "Incompatibilidad de tipos: columna " + cond.column + " es " + columnType.name() +
+                            " pero literal es " + cond.literalType.name(), cond.literalSpan));
+                    }
+                }
+            }
+        }
     }
 }

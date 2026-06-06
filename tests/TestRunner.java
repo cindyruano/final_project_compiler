@@ -1,3 +1,5 @@
+import java.util.List;
+
 public class TestRunner {
     private static int passed = 0;
     private static int failed = 0;
@@ -9,8 +11,47 @@ public class TestRunner {
         run("TODO WHERE unknown column diagnostic", new TestCase() { public void run() { whereUnknownColumn(); }});
         run("TODO WHERE type mismatch diagnostic", new TestCase() { public void run() { whereTypeMismatch(); }});
         run("TODO WHERE missing operand diagnostic", new TestCase() { public void run() { whereMissingOperand(); }});
-        System.out.println("Passed: " + passed + " Failed: " + failed);
+        
+        System.out.println("\n-------------------------------------------");
+        System.out.println("Resultado Oficial -> Passed: " + passed + " Failed: " + failed);
+        System.out.println("-------------------------------------------\n");
+
+        // === MIS PRUEBAS PERSONALIZADAS MANUALES ===
+        System.out.println("Ejecutando pruebas manuales de laboratorio...");
+        miPruebaPersonalizadaValida();
+        miPruebaPersonalizadaError();
+
         if (failed > 0) System.exit(1);
+    }
+
+    private static void miPruebaPersonalizadaValida() {
+        System.out.println("\n[Prueba Manual 1] Query 100% Válida con WHERE compuesto:");
+        String query = "SELECT nombre FROM productos WHERE precio < 500 OR nombre = 'Laptop';";
+        System.out.println("Ejecutando: " + query);
+        
+        ValidationResult r = new CompilerService().validate(query);
+        System.out.println("¿Es válida sintáctica y semánticamente?: " + r.valid);
+        System.out.println("Trazas generadas por el validador:");
+        for (int i = 0; i < r.traces.size(); i++) {
+            System.out.println("  -> " + r.traces.get(i));
+        }
+    }
+
+    private static void miPruebaPersonalizadaError() {
+        System.out.println("\n[Prueba Manual 2] Query Inválida (Type Mismatch intencional):");
+        String query = "SELECT activo FROM usuarios WHERE activo = 12345;";
+        System.out.println("Ejecutando: " + query);
+        
+        ValidationResult r = new CompilerService().validate(query);
+        System.out.println("¿Es válida?: " + r.valid);
+        System.out.println("Errores/Diagnósticos detectados:");
+        if (r.diagnostics.isEmpty()) {
+            System.out.println("  No se detectaron errores.");
+        } else {
+            for (int i = 0; i < r.diagnostics.size(); i++) {
+                System.out.println("  [ERROR] Código: " + r.diagnostics.get(i).code + " | Detalle: " + r.diagnostics.get(i).message);
+            }
+        }
     }
 
     private static void validSelectWithoutWhere() {

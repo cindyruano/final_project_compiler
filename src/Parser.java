@@ -16,17 +16,8 @@ public class Parser {
         Token table = expect(TokenType.IDENTIFIER, "SYNTACTIC_EXPECTED_TABLE");
         if (table != null) statement.table = table.lexeme;
 
-        // TODO SERIE 2:
-        // Implementar parseo de WHERE opcional:
-        // WHERE <columna> <operador> <literal> (AND|OR <columna> <operador> <literal>)*
-        // Debe llenar statement.where con SourceSpan exactos.
         if (match(TokenType.WHERE)) {
-            Token current = current();
-            result.diagnostics.add(new Diagnostic(
-                "SYNTACTIC_EXPECTED_WHERE_OPERAND",
-                "Soporte WHERE pendiente: implemente el AST de condiciones.",
-                current.span));
-            while (!check(TokenType.EOF) && !check(TokenType.SEMICOLON)) advance();
+            statement.where = parseWhereChain();
         }
 
         if (check(TokenType.SEMICOLON)) advance();
@@ -59,4 +50,64 @@ public class Parser {
     private boolean check(TokenType type) { return current().type == type; }
     private Token current() { return tokens.get(pos); }
     private Token advance() { return tokens.get(pos++); }
+
+    private ConditionChain parseWhereChain() {
+        ConditionChain chain = new ConditionChain();
+        WhereCondition first = parseWhereCondition();
+        if (first != null) {
+            chain.conditions.add(first);
+        }
+        while (match(TokenType.AND) || match(TokenType.OR)) {
+            String connector = tokens.get(pos - 1).lexeme.toUpperCase();
+            chain.connectors.add(connector);
+            WhereCondition next = parseWhereCondition();
+            if (next != null) {
+                chain.conditions.add(next);
+            }
+        }
+        return chain;
+    }
+
+    private WhereCondition parseWhereCondition() {
+        Token columnToken = expect(TokenType.IDENTIFIER, "SYNTACTIC_EXPECTED_WHERE_OPERAND");
+        if (columnToken == null) return null;
+
+        Token operatorToken = null;
+        if (match(TokenType.EQUAL)) operatorToken = tokens.get(pos - 1);
+        else if (match(TokenType.GREATER)) operatorToken = tokens.get(pos - 1);
+        else if (match(TokenType.LESS)) operatorToken = tokens.get(pos - 1);
+        else if (match(TokenType.GREATER_EQUAL)) operatorToken = tokens.get(pos - 1);
+        else if (match(TokenType.LESS_EQUAL)) operatorToken = tokens.get(pos - 1);
+        else if (match(TokenType.NOT_EQUAL)) operatorToken = tokens.get(pos - 1);
+        else {
+            result.diagnostics.add(new Diagnostic("SYNTACTIC_EXPECTED_WHERE_OPERAND", "Se esperaba operador de comparaci\u00f3n", current().span));
+            return null;
+        }
+
+        Token literalToken = null;
+        LiteralType literalType = LiteralType.UNKNOWN;
+        if (match(TokenType.NUMBER)) {
+            literalToken = tokens.get(pos - 1);
+            literalType = LiteralType.NUMBER;
+        } else if (match(TokenType.STRING)) {
+            literalToken = tokens.get(pos - 1);
+            literalType = LiteralType.STRING;
+        } else if (match(TokenType.TRUE) || match(TokenType.FALSE)) {
+            literalToken = tokens.get(pos - 1);
+            literalType = LiteralType.BOOLEAN;
+        } else {
+            result.diagnostics.add(new Diagnostic("SYNTACTIC_EXPECTED_WHERE_OPERAND", "Se esperaba literal despu\u00e9s del operador", current().span));
+            return null;
+        }
+
+        return new WhereCondition(
+            columnToken.lexeme,
+            operatorToken.lexeme,
+            literalToken.lexeme,
+            literalType,
+            columnToken.span,
+            operatorToken.span,
+            literalToken.span
+        );
+    }
 }
